@@ -1,0 +1,100 @@
+echo "# Finance" >> README.md
+git init
+git add README.md
+git commit -m "first commit"
+git branch -M main
+git remote add origin https://github.com/Nikhilunnikrishnan/Finance.git
+git push -u origin main
+import pandas as pd
+import numpy as np
+df=pd.read_csv('Nifty 50 for Python.csv')
+df['DATE'] = pd.to_datetime(df['DATE'], format='%d-%b-%y')
+df.set_index('DATE', inplace=True)
+start_date = pd.Timestamp('2000-01-03')
+end_date = pd.Timestamp('2024-06-07')
+df1 = pd.date_range(start=start_date, end=end_date)
+date_range_df = pd.DataFrame(index=df1)
+date_range_df.shape
+df1 = date_range_df.merge(df, how='left', left_index=True, right_index=True)
+df1=df1.ffill()
+def calculate_rolling_returns(df1, years):
+    trading_days_per_year = 252  # Approximation for trading days in a year
+    risk_free_rate = 0.05
+    # Calculate rolling returns
+    window_size = trading_days_per_year * years
+    
+    def rolling_return(window):
+        if len(window) < 2:  # Handle cases where there's not enough data for a full window
+            return np.nan
+        else:
+            return (window.iloc[-1] / window.iloc[0]) ** (1 / years) - 1
+    
+    df1['rolling_returns_' + str(years) + '_year'] = df1['ADJCLOSE'].rolling(window=window_size).apply(rolling_return)
+
+    # Calculate rolling returns exactly 'years' ago
+    df1['rolling_returns_' + str(years) + '_year_ago'] = np.nan  # Initialize column for rolling returns years ago
+
+    for i, row in df1.iterrows():
+        lookup_date = i - pd.DateOffset(years=years)  # Use index directly as it represents the date
+        if lookup_date in df1.index:
+            value_year_ago = df1.loc[lookup_date, 'ADJCLOSE']
+        else:
+            # Find the closest previous date
+            prev_date = df1[df1.index < lookup_date].index.max()
+            if pd.isnull(prev_date):  # Handle case where no valid previous date is found
+                continue
+            value_year_ago = df1.loc[prev_date, 'ADJCLOSE']
+        
+        # Calculate rolling returns for 'years' ago
+        df1.at[i, 'rolling_returns_' + str(years) + '_year_ago'] = (row['ADJCLOSE'] / value_year_ago) ** (1 / years) - 1
+
+    # Calculate additional statistics
+    excess_return = df1['rolling_returns_' + str(years) + '_year'] - risk_free_rate / trading_days_per_year
+    excess_return_ago = df1['rolling_returns_' + str(years) + '_year_ago'] - risk_free_rate / trading_days_per_year
+    avg_return = df1['rolling_returns_' + str(years) + '_year'].mean()
+    avg_return_ago = df1['rolling_returns_' + str(years) + '_year_ago'].mean()
+    max_return = df1['rolling_returns_' + str(years) + '_year'].max()
+    max_return_ago = df1['rolling_returns_' + str(years) + '_year_ago'].max()
+    min_return = df1['rolling_returns_' + str(years) + '_year'].min()
+    min_return_ago = df1['rolling_returns_' + str(years) + '_year_ago'].min()
+    median_return = df1['rolling_returns_' + str(years) + '_year'].median()
+    median_return_ago = df1['rolling_returns_' + str(years) + '_year_ago'].median()
+    std_deviation = df1['rolling_returns_' + str(years) + '_year'].std()
+    std_deviation_ago = df1['rolling_returns_' + str(years) + '_year_ago'].std()
+    sharpe_ratio = excess_return / std_deviation
+    sharpe_ratio_ago = excess_return_ago / std_deviation_ago
+    
+    return avg_return, avg_return_ago, max_return, max_return_ago, min_return, min_return_ago, median_return, median_return_ago, std_deviation, std_deviation_ago, sharpe_ratio, sharpe_ratio_ago
+   
+# Calculate rolling returns for 1 year, 3 years, 5 years, and 10 years
+avg_return_1_year, avg_return_1_year_ago, max_return_1_year, max_return_1_year_ago, min_return_1_year, min_return_1_year_ago, median_return_1_year, median_return_1_year_ago, std_deviation_1_year, std_deviation_1_year_ago, sharpe_ratio_1_year, sharpe_ratio_1_year_ago = calculate_rolling_returns(df1, 1)
+avg_return_3_year, avg_return_3_year_ago, max_return_3_year, max_return_3_year_ago, min_return_3_year, min_return_3_year_ago, median_return_3_year, median_return_3_year_ago, std_deviation_3_year, std_deviation_3_year_ago, sharpe_ratio_3_year, sharpe_ratio_3_year_ago = calculate_rolling_returns(df1, 3)
+avg_return_5_year, avg_return_5_year_ago, max_return_5_year, max_return_5_year_ago, min_return_5_year, min_return_5_year_ago, median_return_5_year, median_return_5_year_ago, std_deviation_5_year, std_deviation_5_year_ago, sharpe_ratio_5_year, sharpe_ratio_5_year_ago = calculate_rolling_returns(df1, 5)
+avg_return_10_year, avg_return_10_year_ago, max_return_10_year, max_return_10_year_ago, min_return_10_year, min_return_10_year_ago, median_return_10_year, median_return_10_year_ago, std_deviation_10_year, std_deviation_10_year_ago, sharpe_ratio_10_year, sharpe_ratio_10_year_ago = calculate_rolling_returns(df1, 10)
+
+# Create a new DataFrame for summary statistics
+summary_stats = pd.DataFrame({
+    'Rolling Return Period': ['1 Year', '1 Year Ago', '3 Years', '3 Years Ago', '5 Years', '5 Years Ago', '10 Years', '10 Years Ago'],
+    'Average Return': [avg_return_1_year, avg_return_1_year_ago, avg_return_3_year, avg_return_3_year_ago, avg_return_5_year, avg_return_5_year_ago, avg_return_10_year, avg_return_10_year_ago],
+    'Maximum Return': [max_return_1_year, max_return_1_year_ago, max_return_3_year, max_return_3_year_ago, max_return_5_year, max_return_5_year_ago, max_return_10_year, max_return_10_year_ago],
+    'Minimum Return': [min_return_1_year, min_return_1_year_ago, min_return_3_year, min_return_3_year_ago, min_return_5_year, min_return_5_year_ago, min_return_10_year, min_return_10_year_ago],
+    'Median Return': [median_return_1_year, median_return_1_year_ago, median_return_3_year, median_return_3_year_ago, median_return_5_year, median_return_5_year_ago, median_return_10_year, median_return_10_year_ago],
+    'Standard Deviation': [std_deviation_1_year, std_deviation_1_year_ago, std_deviation_3_year, std_deviation_3_year_ago, std_deviation_5_year, std_deviation_5_year_ago, std_deviation_10_year, std_deviation_10_year_ago]    
+})
+
+# Export results to Excel
+excel_file = 'rolling_returns_summary_final7.xlsx'
+with pd.ExcelWriter(excel_file, engine='openpyxl') as writer:
+    # Write main data to Excel
+    df_to_write = df1[['ADJCLOSE', 'rolling_returns_1_year_ago', 'rolling_returns_3_year_ago', 'rolling_returns_5_year_ago', 'rolling_returns_10_year_ago']]
+    df_to_write.to_excel(writer, sheet_name='Data', index=True)
+    
+    # Write summary statistics to a separate sheet
+    summary_stats.to_excel(writer, sheet_name='Summary Statistics', index=False)
+
+# Print confirmation
+print(f'Excel file "{excel_file}" has been created successfully.')
+
+git remote add origin https://github.com/Nikhilunnikrishnan/Finance.git
+git branch -M main
+git push -u origin main
